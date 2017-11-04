@@ -2,9 +2,25 @@ import fs from 'fs'
 import LambdaChromeLauncher from './launcher'
 import { debug } from './utils'
 import DEFAULT_CHROME_FLAGS from './flags'
+import http from 'http'
 
 const DEVTOOLS_PORT = 9222
 const DEVTOOLS_HOST = 'http://127.0.0.1'
+const RANDOM_PORT = true;
+
+
+function getPort() {
+    return new Promise((resolve, reject) => {
+        const server = http.createServer();
+        server.listen(0);
+        server.once('listening', () => {
+            const port = server.address().port;
+            server.close(() => resolve(port));
+        });
+        server.once('error', reject);
+    });
+}
+
 
 // persist the instance across invocations
 // when the *lambda* container is reused.
@@ -16,6 +32,14 @@ export default async function launch (
   const chromeFlags = [...DEFAULT_CHROME_FLAGS, ...flags]
 
   if (!chromeInstance) {
+
+    // redefines DEVTOOLS_PORT with random one.
+    if (RANDOM_PORT) {
+      console.log('Random port: ON');
+      port = await getPort();
+      console.log('Random port: ', port);
+    }
+
     if (process.env.AWS_EXECUTION_ENV || forceLambdaLauncher) {
       chromeInstance = new LambdaChromeLauncher({
         chromePath,
